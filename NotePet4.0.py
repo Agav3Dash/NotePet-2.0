@@ -12,7 +12,7 @@ BLANCO = (255, 255, 255)
 VERDE = (0, 255, 0)
 ROJO = (255, 0, 0)
 AZUL = (0, 0, 255)
-GRIS = (128, 128, 128)  # Nuevo color para el botÛn desactivado
+GRIS = (128, 128, 128)  # Nuevo color para el bot√≥n desactivado
 
 # Definir algunas constantes
 SCREEN_WIDTH = 500
@@ -40,10 +40,10 @@ for y in range(0, sprite_sheet.get_height(), SPRITE_SIZE):
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Note Pet")
 
-# Establecer el reloj para controlar la velocidad de la animaciÛn de los sprites
+# Establecer el reloj para controlar la velocidad de la animaci√≥n de los sprites
 sprite_clock = pygame.time.Clock()
 
-# Establecer el reloj para controlar la lÛgica del juego
+# Establecer el reloj para controlar la l√≥gica del juego
 game_clock = pygame.time.Clock()
 
 # Clase para manejar la mascota virtual
@@ -59,22 +59,22 @@ class Mascota(pygame.sprite.Sprite):
         self.tiempo_muerto = None
         self.frame_index = 0 # Indicador del frame actual
         self.frame_start = 0  # Frame de inicio en la sprite sheet
-        self.frame_end = 3  # Frame de finalizaciÛn en la sprite sheet
+        self.frame_end = 3  # Frame de finalizaci√≥n en la sprite sheet
         self.sprite_time_elapsed = 0  # Tiempo transcurrido para actualizar el sprite
         self.experiencia = 0
         self.nivel = 1  # Nivel inicial
         self.mensaje = Mensaje("")
         self.evoluciones = (2,4,5,7,8)
-        self.frames_evolucion = [(0, 3), (4, 7), (8, 11), (12,15), (16,19)]  # Por ejemplo, cada evoluciÛn cambia cada 4 frames
+        self.frames_evolucion = [(0, 3), (4, 7), (8, 11), (12,15), (16,19)]  # Por ejemplo, cada evoluci√≥n cambia cada 4 frames
         self.evolucion_actual = 0
         self.coins = 0
 
     def subir_nivel(self):
-       if self.experiencia >= 100:  # Verificar si la experiencia alcanzÛ o superÛ 100
-         niveles_subidos = self.experiencia // 100  # Calcular cu·ntos niveles se han subido
-         self.nivel += niveles_subidos  # Sumar el n˙mero de niveles subidos al nivel actual
-         self.experiencia %= 100  # Modificar la experiencia para que sea el resto despuÈs de subir de nivel
-         self.coins += niveles_subidos * 5  # Ajusta este valor seg˙n lo que consideres apropiado
+       if self.experiencia >= 100:  # Verificar si la experiencia alcanz√≥ o super√≥ 100
+         niveles_subidos = self.experiencia // 100  # Calcular cu√°ntos niveles se han subido
+         self.nivel += niveles_subidos  # Sumar el n√∫mero de niveles subidos al nivel actual
+         self.experiencia %= 100  # Modificar la experiencia para que sea el resto despu√©s de subir de nivel
+         self.coins += niveles_subidos * 5  # Ajusta este valor seg√∫n lo que consideres apropiado
          print(f"Felicidades, has subido {niveles_subidos} niveles.")
          print(f"Has conseguido el nivel {self.nivel}")
          print(f"Has ganado {niveles_subidos * 5} coins.")
@@ -86,11 +86,11 @@ class Mascota(pygame.sprite.Sprite):
         # Actualizar el tiempo transcurrido para el sprite
         self.sprite_time_elapsed += dt
         if self.nivel == self.evoluciones[self.evolucion_actual]:
-            # Cambiar los frames de acuerdo a la siguiente evoluciÛn
+            # Cambiar los frames de acuerdo a la siguiente evoluci√≥n
             self.frame_start, self.frame_end = self.frames_evolucion[self.evolucion_actual]
-            self.evolucion_actual += 1  # Moverse a la siguiente evoluciÛn
+            self.evolucion_actual += 1  # Moverse a la siguiente evoluci√≥n
         if self.evolucion_actual >= len(self.evoluciones):
-                self.evolucion_actual = len(self.evoluciones) -1  # Mantener la ˙ltima evoluciÛn
+                self.evolucion_actual = len(self.evoluciones) -1  # Mantener la √∫ltima evoluci√≥n
                        
                  
         # Actualizar la imagen de la mascota con el nuevo conjunto de frames
@@ -108,7 +108,7 @@ class Mensaje:
         self.visible = True
         self.font = pygame.font.SysFont("Consolas", 14)  # Fuente para el mensaje
         self.tiempo_visible = 0  # Tiempo transcurrido con el mensaje visible
-        self.duracion_maxima = 3  # DuraciÛn m·xima del mensaje en segundos
+        self.duracion_maxima = 3  # Duraci√≥n m√°xima del mensaje en segundos
 
     def mostrar(self, pantalla, x, y):
         if self.visible:
@@ -127,7 +127,7 @@ class Mensaje:
         self.visible = True
         self.tiempo_visible = 0  # Reiniciar el tiempo visible
 
-        # FunciÛn para alimentar a la mascota
+        # Funci√≥n para alimentar a la mascota
 def alimentar_mascota(mascota):
     mascota.hambre += 1 #1
     mascota.vida += .2  #.2
@@ -156,11 +156,11 @@ class Registro:
             for evento in pygame.event.get():
                 if evento.type == pygame.QUIT:
                     ingresando = False
-                    pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))  # Restaurar tamaÒo original de la ventana
+                    pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))  # Restaurar tama√±o original de la ventana
                 elif evento.type == pygame.KEYDOWN:
                     if evento.key == pygame.K_RETURN:
                         ingresando = False
-                        pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))  # Restaurar tamaÒo original de la ventana
+                        pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))  # Restaurar tama√±o original de la ventana
                     elif evento.key == pygame.K_BACKSPACE:
                         self.texto_ingresado = self.texto_ingresado[:-1]
                         pantalla_registro.fill(NEGRO)  # Limpiar la pantalla antes de volver a dibujar el texto
@@ -168,19 +168,19 @@ class Registro:
                         pantalla_registro.blit(texto_superficie, (10, 10))  # Mostrar el texto actualizado
                         pygame.display.flip()  # Actualizar la pantalla
                     elif evento.key == pygame.K_TAB:
-                        self.texto_ingresado += '\n'  # Agregar un salto de lÌnea al texto ingresado
+                        self.texto_ingresado += '\n'  # Agregar un salto de l√≠nea al texto ingresado
                     else:
                         self.texto_ingresado += evento.unicode
                         pantalla_registro.fill(NEGRO)  # Limpiar la pantalla antes de volver a dibujar el texto
                         texto_superficie = fuente.render(self.texto_ingresado, True, BLANCO)
                         pantalla_registro.blit(texto_superficie, (10, 10))  # Mostrar el texto actualizado
                         pygame.display.flip()  # Actualizar la pantalla
-                       # Dividir el texto en lÌneas
+                       # Dividir el texto en l√≠neas
             lineas = [self.texto_ingresado[i:i+30] for i in range(0, len(self.texto_ingresado), 30)]
-            # Renderizar y mostrar cada lÌnea
+            # Renderizar y mostrar cada l√≠nea
             for i, linea in enumerate(lineas):
                 texto_superficie = fuente.render(linea, True, BLANCO)
-                pantalla_registro.blit(texto_superficie, (10, 10 + i * 24))  # Ajustar la posiciÛn vertical
+                pantalla_registro.blit(texto_superficie, (10, 10 + i * 24))  # Ajustar la posici√≥n vertical
             pygame.display.flip()
                                            
           # Guardar texto en un archivo de texto
@@ -215,9 +215,9 @@ class Shop:
         # Dibujar botones para cada producto
         boton_posicion = (1, 1)
         for nombre, producto in self.productos.items():
-            # Obtener el rect·ngulo del botÛn
+            # Obtener el rect√°ngulo del bot√≥n
             producto_rect = producto["imagen"].get_rect(topleft=boton_posicion)
-            producto["rect"] = producto_rect  # Guardar el rect·ngulo en el diccionario del producto
+            producto["rect"] = producto_rect  # Guardar el rect√°ngulo en el diccionario del producto
             screen.blit(producto["imagen"], producto_rect)
             texto_producto = fuente.render(f"{nombre} - {producto['precio']} coins", True, BLANCO)
             screen.blit(texto_producto, (producto_rect.x, producto_rect.y + 40))
@@ -236,7 +236,7 @@ class Shop:
         comercio_rect = self.comercio_imagen.get_rect(topleft=(240, 460))
         screen.blit(self.comercio_imagen, comercio_rect)
         
-        return comercio_rect  # Devolver el rect·ngulo del botÛn de comercio
+        return comercio_rect  # Devolver el rect√°ngulo del bot√≥n de comercio
 
 
 
@@ -254,7 +254,7 @@ class Shop:
                 print(f"Has comprado {nombre}")
                 print(f"Monedas restantes de la mascota: {self.mascota.coins}")
                 if nombre == "naranja":
-                 self.mascota.experiencia += 40  # Ajusta este valor seg˙n lo que consideres apropiado
+                 self.mascota.experiencia += 40  # Ajusta este valor seg√∫n lo que consideres apropiado
                  print("Has ganado experiencia por comprar una naranja")
                  print(f"Experiencia total de la mascota: {self.mascota.experiencia}")
                  self.mascota.subir_nivel()  # Verificar si se puede subir de nivel
@@ -277,7 +277,7 @@ class Shop:
         if self.inventario:
             producto_aleatorio = random.choice(list(self.inventario.keys()))
             cantidad_producto = self.inventario[producto_aleatorio]
-            # Obtener monedas al vender el producto (aquÌ puedes ajustar cÛmo se calculan las monedas)
+            # Obtener monedas al vender el producto (aqu√≠ puedes ajustar c√≥mo se calculan las monedas)
             monedas_obtenidas = random.randint(1, 3) * cantidad_producto
             # Actualizar el inventario y las monedas del jugador
             del self.inventario[producto_aleatorio]  # Eliminar el producto del inventario
@@ -300,7 +300,7 @@ class Shop:
                 if evento.type == pygame.QUIT:
                     ingresando_shop = False
                     pygame.display.set_mode(
-                        (SCREEN_WIDTH, SCREEN_HEIGHT))  # Restaurar tamaÒo original de la ventana
+                        (SCREEN_WIDTH, SCREEN_HEIGHT))  # Restaurar tama√±o original de la ventana
                 elif evento.type == pygame.MOUSEBUTTONDOWN:
                     if evento.button == 1:  # Boton izquierdo del raton
                         # Verificar si se hizo clic en un producto y comprarlo
@@ -320,7 +320,7 @@ class Shop:
     mascota.update(dt)
 
 
-# Inicializar botÛn de alimentar
+# Inicializar bot√≥n de alimentar
 boton_alimentar = pygame.Rect(450, 80, 140, 40)
 ###
 
@@ -334,14 +334,14 @@ shop = Shop(mascota)
 # Inicializar el tiempo transcurrido
 time_elapsed = 0
 
-# Variable para controlar si se debe bloquear el botÛn de alimentar
+# Variable para controlar si se debe bloquear el bot√≥n de alimentar
 bloquear_boton_alimentar = False
 
 #sonidos##
 
 sonidoopen =pygame.mixer.Sound("open.mp3")
 
-# FunciÛn para cargar datos al iniciar el juego
+# Funci√≥n para cargar datos al iniciar el juego
 def cargar_datos():
     try:
         with open("save.pet.txt", "r") as archivo:
@@ -371,7 +371,7 @@ def cargar_inventario():
         # Manejar el caso cuando el archivo no existe
         pass
 
-# Llamada a la funciÛn para cargar datos al iniciar el juego
+# Llamada a la funci√≥n para cargar datos al iniciar el juego
 cargar_datos()
 
 ############ llamar funcion cargar inventario###
@@ -385,21 +385,21 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1:  # BotÛn izquierdo del ratÛn
+            if event.button == 1:  # Bot√≥n izquierdo del rat√≥n
                 if not mascota.muerto and not bloquear_boton_alimentar and boton_alimentar.collidepoint(event.pos):
                     alimentar_mascota(mascota)
                 elif not mascota.muerto:
                     mascota.experiencia += 1  # Incrementar experiencia al hacer clic
                     print(f"Has ganado 1 punto de experiencia Total de experiencia: {mascota.experiencia}")
                     mascota.subir_nivel()  # Verificar si se puede subir de nivel
-            elif event.button == 3:  # BotÛn derecho del ratÛn
+            elif event.button == 3:  # Bot√≥n derecho del rat√≥n
                 if not mascota.muerto:
                     registro.ingresar_texto()
-            elif event.button == 2:  # BotÛn central del ratÛn
+            elif event.button == 2:  # Bot√≥n central del rat√≥n
                 if not mascota.muerto:
                     shop.ingresar_shop()  
 
-    # Calcular el tiempo transcurrido desde el ˙ltimo fotograma
+    # Calcular el tiempo transcurrido desde el √∫ltimo fotograma
     dt = game_clock.tick(FPS) / 1000.0  # Se fijan los FPS a 30
     time_elapsed += dt
     # Calcular el nivel actual
@@ -414,7 +414,7 @@ while running:
         mascota.hambre = max(0, min(101, mascota.hambre))
         mascota.vida = max(0, min(101, mascota.vida))
 
-        # LÛgica para abrir la ventana de texto cada 10 minutos
+        # L√≥gica para abrir la ventana de texto cada 10 minutos
         if time_elapsed > 600:
             registro.ingresar_texto()
             time_elapsed = 0  # Reiniciar el tiempo transcurrido
@@ -424,7 +424,7 @@ while running:
         # Actualizar el mensaje
         mascota.mensaje.actualizar(dt)
     else:
-        # Si la mascota est· muerta, bloquear el botÛn de alimentar durante 2 minutos
+        # Si la mascota est√° muerta, bloquear el bot√≥n de alimentar durante 2 minutos
         if mascota.tiempo_muerto is None:
             mascota.tiempo_muerto = pygame.time.get_ticks()  # Marcar el tiempo de muerte
 
@@ -491,12 +491,12 @@ while running:
     texto_nivel = fuente.render(f"Nivel: {nivel_actual}", True, BLANCO)
     screen.blit(texto_nivel, (360, 470))
 
-    # Dibujar botÛn de alimentar centrado en la parte inferior de la pantalla
+    # Dibujar bot√≥n de alimentar centrado en la parte inferior de la pantalla
     boton_alimentar.x = (SCREEN_WIDTH - boton_alimentar.width) // 2
-    boton_alimentar.y = SCREEN_HEIGHT - 80  # Ajustar la posiciÛn vertical
-    pygame.draw.rect(screen, BLANCO if not bloquear_boton_alimentar else GRIS, boton_alimentar)  # Cambiar el color si est· bloqueado
+    boton_alimentar.y = SCREEN_HEIGHT - 80  # Ajustar la posici√≥n vertical
+    pygame.draw.rect(screen, BLANCO if not bloquear_boton_alimentar else GRIS, boton_alimentar)  # Cambiar el color si est√° bloqueado
 
-    # Definir el texto del botÛn seg˙n el estado de la mascota
+    # Definir el texto del bot√≥n seg√∫n el estado de la mascota
     if mascota.muerto:
         texto_boton = fuente.render("Muerto", True, NEGRO)
     elif bloquear_boton_alimentar:
@@ -504,7 +504,7 @@ while running:
     else:
         texto_boton = fuente.render("Alimentar", True, NEGRO)
 
-    # Mostrar el texto del botÛn
+    # Mostrar el texto del bot√≥n
     screen.blit(texto_boton, (boton_alimentar.x + 10, boton_alimentar.y + 10))
 
     # Mostrar mensajes
@@ -533,7 +533,7 @@ def guardar_inventario():
 # Guardar datos del inventario
 guardar_inventario()       
 
-# Llamada a la funciÛn para guardar datos antes de cerrar el juego
+# Llamada a la funci√≥n para guardar datos antes de cerrar el juego
 guardar_datos()
 
 # Luego de salir del bucle principal, cerrar Pygame
