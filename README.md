@@ -1,4 +1,4 @@
-# NotePet-2.0
+# NotePet-4.0
 A little friend for have notes and level up
 
 Hello im Agav3Dash
@@ -20,9 +20,9 @@ this is a proyect in my python path i hope you like it.
 rigth click open a registro window, you can text ovether, 
 shift make a line jump in the final file.
 
-every 2 min you are going to have a auto window open for you can write a new note.
+every 10 min you are going to have a auto window open for you can write a new note.
 
 automatic save in registro file.
 
 twitter
-@misterell
+@mistrell_mx
