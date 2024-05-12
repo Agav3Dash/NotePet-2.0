@@ -1,0 +1,959 @@
+from bdb import Breakpoint
+from cgitb import text
+import time
+from turtle import Screen
+from typing import Self
+import pygame
+import sys
+from pygame.display import flip
+from pygame.locals import *
+from pygame.sprite import collide_mask
+import random
+import tkinter as tk
+from tkinter import messagebox
+import pickle
+import json
+import os
+
+from pygame.time import set_timer
+
+
+# Definir colores
+NEGRO = (0, 0, 0)
+BLANCO = (255, 255, 255)
+VERDE = (0, 255, 0)
+ROJO = (255, 0, 0)
+AZUL = (0, 0, 255)
+GRIS = (128, 128, 128)  # Nuevo color para el boton desactivado
+
+# Definir algunas constantes
+SCREEN_WIDTH = 500
+SCREEN_HEIGHT = 500
+SPRITE_SIZE = 32
+SPRITE_SCALE = 10  # Escala del sprite (200%)
+SPRITE_SHEET = "huevonaranja.png"
+FPS = 30
+
+# Inicializar Pygame
+pygame.init()
+
+
+# Cargar la sprite sheet
+sprite_sheet = pygame.image.load(SPRITE_SHEET)
+
+# Obtener los cuadros de la sprite sheet y escalarlos
+frames = []
+for y in range(0, sprite_sheet.get_height(), SPRITE_SIZE):
+    for x in range(0, sprite_sheet.get_width(), SPRITE_SIZE):
+        frame = sprite_sheet.subsurface(pygame.Rect(x, y, SPRITE_SIZE, SPRITE_SIZE))
+        frame = pygame.transform.scale(frame, (SPRITE_SIZE * SPRITE_SCALE, SPRITE_SIZE * SPRITE_SCALE))
+        frames.append(frame)
+
+# Configurar la pantalla
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Note Pet")
+
+# Establecer el reloj para controlar la velocidad de la animación de los sprites
+sprite_clock = pygame.time.Clock()
+
+# Establecer el reloj para controlar la lógica del juego
+game_clock = pygame.time.Clock()
+
+# Clase para manejar la mascota virtual
+class Mascota(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.image = frames[0]  # Seleccionar el primer frame como imagen inicial
+        self.rect = self.image.get_rect()
+        self.rect.center = (250, 250)
+        self.hambre = 101
+        self.vida = 101
+        self.muerto = False
+        self.tiempo_muerto = None
+        self.frame_index = 0 # Indicador del frame actual
+        self.frame_start = 0  # Frame de inicio en la sprite sheet
+        self.frame_end = 3  # Frame de finalización en la sprite sheet
+        self.sprite_time_elapsed = 0  # Tiempo transcurrido para actualizar el sprite
+        self.experiencia = 0
+        self.nivel = 1  # Nivel inicial
+        self.mensaje = Mensaje("")
+        self.evoluciones = (2,4,5,7,8)
+        self.frames_evolucion = [(0, 3), (4, 7), (8, 11), (12,15), (16,19)]  # Por ejemplo, cada evolución cambia cada 4 frames
+        self.evolucion_actual = 0
+        self.coins = 0
+        
+    def subir_nivel(self):
+       if self.experiencia >= 100:  # Verificar si la experiencia alcanzó o superó 100
+         niveles_subidos = self.experiencia // 100  # Calcular cuántos niveles se han subido
+         self.nivel += niveles_subidos  # Sumar el número de niveles subidos al nivel actual
+         self.experiencia %= 100  # Modificar la experiencia para que sea el resto después de subir de nivel
+         self.coins += niveles_subidos * 5  # Ajusta este valor según lo que consideres apropiado
+         print(f"Felicidades, has subido {niveles_subidos} niveles.")
+         print(f"Has conseguido el nivel {self.nivel}")
+         print(f"Has ganado {niveles_subidos * 5} coins.")
+         print(f"Experiencia total de la mascota: {self.experiencia}")
+         
+
+
+    def update(self, dt):
+        # Actualizar el tiempo transcurrido para el sprite
+        self.sprite_time_elapsed += dt
+        if self.nivel == self.evoluciones[self.evolucion_actual]:
+            # Cambiar los frames de acuerdo a la siguiente evolución
+            self.frame_start, self.frame_end = self.frames_evolucion[self.evolucion_actual]
+            self.evolucion_actual += 1  # Moverse a la siguiente evolución
+        if self.evolucion_actual >= len(self.evoluciones):
+                self.evolucion_actual = len(self.evoluciones) -1  # Mantener la última evolución
+                       
+                 
+        # Actualizar la imagen de la mascota con el nuevo conjunto de frames
+        # Cambiar de frame cada 1 segundos
+        if  self.sprite_time_elapsed >= 1:
+         self.frame_index = (self.frame_index + 1) % (self.frame_end - self.frame_start + 1) + self.frame_start
+         self.image = frames[self.frame_index]  # Asignar el nuevo frame como imagen de la mascota
+         self.sprite_time_elapsed = 0  # Reiniciar el tiempo transcurrido para el sprite
+
+            
+             #Clase para dar mensajes
+class Mensaje:
+    def __init__(self, texto):
+        self.texto = texto
+        self.visible = True
+        self.font = pygame.font.SysFont("Consolas", 14)  # Fuente para el mensaje
+        self.tiempo_visible = 0  # Tiempo transcurrido con el mensaje visible
+        self.duracion_maxima = 3  # Duración máxima del mensaje en segundos
+
+    def mostrar(self, pantalla, x, y):
+        if self.visible:
+            texto_surface = self.font.render(self.texto, True, BLANCO)  # Renderizar el texto
+            pantalla.blit(texto_surface, (10, 390))  # Mostrar el texto en la pantalla
+
+    def actualizar(self, dt):
+        if self.visible:
+            self.tiempo_visible += dt
+            if self.tiempo_visible >= self.duracion_maxima:
+                self.visible = False
+                self.tiempo_visible = 0
+
+    def mostrar_mensaje(self, texto):
+        self.texto = texto
+        self.visible = True
+        self.tiempo_visible = 0  # Reiniciar el tiempo visible
+
+        # Función para alimentar a la mascota
+def alimentar_mascota(mascota):
+    mascota.hambre += 1 #1
+    mascota.vida += .2  #.2
+    if mascota.hambre > 101:
+        mascota.hambre = 101
+    if mascota.vida > 101:
+        mascota.vida = 101
+    mascota.mensaje = Mensaje("Rico taco")
+ 
+    
+
+# Clase para manejar el registro de texto
+class Registro:
+    def __init__(self):
+        self.texto_ingresado = ""
+
+    def ingresar_texto(self):
+        pygame.display.set_caption("Notas de Mascota")
+        pantalla_registro = pygame.display.set_mode((500, 500))
+        fuente = pygame.font.SysFont("Consolas", 24)
+        ingresando = True
+        self.texto_ingresado = ""  # Borrar el texto ingresado anteriormente al abrir la pantalla
+        sonidoopen.play()
+
+        while ingresando:
+            dt = game_clock.tick(FPS) / 10000.0  # Control del tiempo del juego
+            for evento in pygame.event.get():
+                if evento.type == pygame.QUIT:
+                    ingresando = False
+                    pygame.display.set_caption("Note Pet")
+                    pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))  # Restaurar tamaño original de la ventana
+                elif evento.type == pygame.KEYDOWN:
+                    if evento.key == pygame.K_RETURN:
+                        ingresando = False
+                        pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))  # Restaurar tamaño original de la ventana
+                        pygame.display.set_caption("Note Pet")
+                    elif evento.key == pygame.K_BACKSPACE:
+                        self.texto_ingresado = self.texto_ingresado[:-1]
+                        pantalla_registro.fill(NEGRO)  # Limpiar la pantalla antes de volver a dibujar el texto
+                        texto_superficie = fuente.render(self.texto_ingresado, True, BLANCO)
+                        pantalla_registro.blit(texto_superficie, (10, 10))  # Mostrar el texto actualizado
+                        pygame.display.flip()  # Actualizar la pantalla
+                    elif evento.key == pygame.K_TAB:
+                        self.texto_ingresado += '\n'  # Agregar un salto de línea al texto ingresado
+                    else:
+                        self.texto_ingresado += evento.unicode
+                        pantalla_registro.fill(NEGRO)  # Limpiar la pantalla antes de volver a dibujar el texto
+                        texto_superficie = fuente.render(self.texto_ingresado, True, BLANCO)
+                        pantalla_registro.blit(texto_superficie, (10, 10))  # Mostrar el texto actualizado
+                        pygame.display.flip()  # Actualizar la pantalla
+                        
+                       # Dividir el texto en líneas
+            lineas = [self.texto_ingresado[i:i+30] for i in range(0, len(self.texto_ingresado), 30)]
+            # Renderizar y mostrar cada línea
+            for i, linea in enumerate(lineas):
+                texto_superficie = fuente.render(linea, True, BLANCO)
+                pantalla_registro.blit(texto_superficie, (10, 10 + i * 24))  # Ajustar la posicion vertical
+            pygame.display.flip()
+                                           
+          # Guardar texto en un archivo de texto
+        with open("registro_mascota.txt", "a") as archivo:
+            archivo.write(self.texto_ingresado + "\n")
+                    #Activar reloj principal  
+            
+dt = game_clock.tick(FPS) / 1000.0  # Convertir a segundos 
+
+# Inicializar mascota
+mascota = Mascota()
+# Inicializar el objeto de Granja
+
+
+# Inicializar fuente para mostrar el nivel de hambre y vida
+fuente = pygame.font.SysFont("Consolas", 24)
+##Clase para iniciar la tienda##
+
+    
+class Shop:
+    def __init__(self,mascota):
+        self.productos = {
+            "zanahoria": {"cantidad": 1, "precio": 2 , "plantar": True , "tiempo_plantacion": 5 , "imagen": pygame.image.load("zanahoria.png")},
+            "naranja": {"cantidad": 3, "precio": 4 , "plantar": True , "tiempo_plantacion": 4 , "imagen": pygame.image.load("naranja.png")},
+            "papa": {"cantidad": 1, "precio": 5, "plantar": True ,  "tiempo_plantacion": 2 ,"imagen": pygame.image.load("papa.png")},
+            "muslito": {"cantidad": 1, "precio": 10 ,"plantar": False , "imagen": pygame.image.load("muslito.png")},
+            
+            
+        }
+        
+        self.inventario = {}  # Inventario del jugador
+        self.mascota = mascota  # Referencia a la mascota
+        self.comercio_imagen = pygame.image.load("comercio.png")  # Agregar imagen del comerciante
+        self.inventario_imagen = pygame.image.load("inventario.png") #Agrega la imagen para ver inventario
+        
+    def puede_plantar(self, producto_nombre):
+        if producto_nombre in self.productos:
+            return self.productos[producto_nombre]["plantar"]
+        else:
+            pass
+        
+    
+    def dibujar_productos(self, screen):
+        # Dibujar botones para cada producto
+        boton_posicion = (1, 1)
+        for nombre, producto in self.productos.items():
+            # Obtener el rectángulo del boton
+            producto_rect = producto["imagen"].get_rect(topleft=boton_posicion)
+            producto["rect"] = producto_rect  # Guardar el rectangulo en el diccionario del producto
+            screen.blit(producto["imagen"], producto_rect)
+            texto_producto = fuente.render(f"{nombre} - {producto['precio']} coins", True, BLANCO)
+            screen.blit(texto_producto, (producto_rect.x, producto_rect.y + 40))
+            boton_posicion = (boton_posicion[0], boton_posicion[1] + 60)
+            
+        ##Monedas##
+        monedas_imagen = pygame.image.load("monedas.png")
+        monedas_x = 300  # Coordenada x de las monedas
+        monedas_y = 460 # Coordenada y de las monedas
+        screen.blit(monedas_imagen, (monedas_x, monedas_y))
+    
+        # Mostrar cantidad de monedas de la mascota
+        texto_monedas = fuente.render(f"coins: {mascota.coins}", True, BLANCO)
+        screen.blit(texto_monedas, (monedas_x + 40, monedas_y + 5))
+        
+        # Dibujar botón de inventario
+        inventario_rect = self.inventario_imagen.get_rect(topleft=(200, 460))
+        screen.blit(self.inventario_imagen, inventario_rect)   
+
+        # Dibujar botón de comercio
+        comercio_rect = self.comercio_imagen.get_rect(topleft=(240, 460))
+        screen.blit(self.comercio_imagen, comercio_rect)
+        
+        return comercio_rect, inventario_rect  # Devolver el rectángulo del botón de comercio
+    
+    # metodo para definir si un producto se puede plantar
+    
+    
+    def comprar_producto(self, nombre):
+        if nombre in self.productos:
+            producto = self.productos[nombre]
+            if self.mascota.coins >= producto["precio"]:
+                # Restar el precio del producto de las monedas de la mascota
+                self.mascota.coins -= producto["precio"]
+                # Agregar el producto al inventario de la mascota
+                if nombre in self.inventario:
+                    self.inventario[nombre] += 1
+                else:
+                    self.inventario[nombre] = 1
+                print(f"Has comprado {nombre}")
+                print(f"Monedas restantes de la mascota: {self.mascota.coins}")
+            if nombre == "naranja":
+                self.mascota.experiencia += 15 # Ajusta este valor según lo que consideres apropiado
+                print("naranja sube la experiencia")
+                print(f"Experiencia total de la mascota: {self.mascota.experiencia}")
+                self.mascota.subir_nivel()  # Verificar si se puede subir de nivel
+            elif nombre == "zanahoria":
+                 self.mascota.vida += 3 #Ajustar el valor de acurdo a lo apropiado
+                 print("zanahoria sube la vida")
+                 print(f"Vida total de la mascota:{self.mascota.vida}")
+            elif nombre == "muslito":
+                 self.mascota.hambre += 6 #Ajustar el valor de acurdo a lo apropiado
+                 print("muslito ha recuperado tu nivel de hambre")
+                 print(f"hambre total de la mascota:{self.mascota.hambre}")
+            elif nombre == "papa":
+                 self.mascota.hambre += 5 #Ajustar el valor de acurdo a lo apropiado
+                 print("papa ha recuperado tu nivel de hambre")
+                 print(f"hambre total de la mascota:{self.mascota.hambre}")
+            else:
+                print("No tienes suficientes monedas")
+                print(self.inventario)
+        else:
+            print("Producto no encontrado")
+    def comerciar(self,):
+        # Obtener un producto aleatorio del inventario
+        if self.inventario:
+            producto_aleatorio = random.choice(list(self.inventario.keys()))
+            cantidad_producto = self.inventario[producto_aleatorio]
+            # Obtener monedas al vender el producto (aquí puedes ajustar cómo se calculan las monedas)
+            monedas_obtenidas = random.randint(1, 3) * cantidad_producto
+            # Actualizar el inventario y las monedas del jugador
+            del self.inventario[producto_aleatorio] # Eliminar el producto del inventario
+            self.mascota.coins += monedas_obtenidas  # Agregar las monedas al jugador
+            print(f"Has vendido {cantidad_producto} {producto_aleatorio} por {monedas_obtenidas} coins.")
+        else:
+            print("No tienes productos para comerciar.")
+            
+
+    def abrir_inventario(self):
+        pygame.display.set_caption("Inventario de la Mascota")
+        pantalla_inventario = pygame.display.set_mode((480, 480))
+        sonidoopen.play()
+        ingresando_inventario = True
+        producto_seleccionado = None  # Almacenar el nombre del producto seleccionado
+        
+
+        while ingresando_inventario:
+            dt = game_clock.tick(FPS) / 10000.0  # Control del tiempo del juego
+            for evento in pygame.event.get():
+                if evento.type == pygame.QUIT:
+                    ingresando_inventario = False
+                    pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))  # Restaurar tamaño original de la ventana
+                    pygame.display.set_caption("Tienda de Mascota")
+                elif evento.type == pygame.MOUSEBUTTONDOWN:
+                    if evento.button == 3:  # Boton derecho del raton
+                        # Verificar si se hizo clic en un producto y seleccionarlo
+                     for nombre, cantidad in self.inventario.items():
+                        producto_imagen = self.productos[nombre]["imagen"]
+                        producto_rect = producto_imagen.get_rect(topleft=(1, 50 * list(self.inventario.keys()).index(nombre) + 1))
+                        if producto_rect.collidepoint(evento.pos):
+                            producto_seleccionado = nombre
+                            print(f"{producto_seleccionado},se uso en la granja.")
+                            ingresando_inventario = False
+                            break     
+                if evento.type == pygame.MOUSEBUTTONDOWN:
+                 if evento.button == 1:  # Boton izquierdo del raton   
+                # Verificar si aún quedan productos en el inventario
+                   if any(cantidad > 0 for cantidad in self.inventario.values()):
+                    # Verificar si se hizo clic en un producto y seleccionarlo
+                     for nombre, cantidad in self.inventario.items():
+                        producto_imagen = self.productos[nombre]["imagen"]
+                        producto_rect = producto_imagen.get_rect(topleft=(1, 50 * list(self.inventario.keys()).index(nombre) + 1))
+                        if producto_rect.collidepoint(evento.pos):
+                            if nombre in self.inventario:
+                                if self.inventario[nombre] > 0:  # Verificar si la cantidad es mayor que cero
+                                    self.inventario[nombre] -= 1
+                                    producto_seleccionado = nombre
+                                    alimentar_mascota(mascota) 
+                                    if nombre == "zanahoria":
+                                        self.mascota.hambre += 4    
+                                    print(f"Has utilizado: {producto_seleccionado}")
+                                    if nombre == "papa":
+                                        self.mascota.vida -= 5
+                                        print (f"Has utilizado:{ producto_seleccionado}")
+                                    if nombre == "naranja":
+                                        self.mascota.experiencia += 3
+                                        print (f"Has utilizado:{ producto_seleccionado}")
+                                        self.mascota.subir_nivel()  # Verificar si se puede subir de nivel
+                                    self.mascota.subir_nivel()
+                                    if nombre == "muslito":
+                                        self.mascota.vida += 12
+                                        self.mascota.hambre += 10
+                                        self.mascota.experiencia += 15
+                                        print (f"Has utilizado:{ producto_seleccionado}")
+                                        self.mascota.subir_nivel()  # Verificar si se puede subir de nivel                                                            
+                                    if self.inventario[nombre] <= 0:
+                                        print(f"Has utilizado el ultimo: {producto_seleccionado}")
+                                else:
+                                     print(f"No tienes mas {nombre} en el inventario")
+                                   
+                                        
+                        pygame.display.flip()
+
+                            
+
+            pantalla_inventario.fill(NEGRO)
+            # Dibujar los productos del inventario
+            boton_posicion = (1, 1)
+            for nombre, cantidad in self.inventario.items():
+                producto_imagen = self.productos[nombre]["imagen"]
+                producto_rect = producto_imagen.get_rect(topleft=boton_posicion)
+                pantalla_inventario.blit(producto_imagen, producto_rect)
+                texto_cantidad = fuente.render(f"   x{cantidad}", True, BLANCO)
+                pantalla_inventario.blit(texto_cantidad, (producto_rect.x + 5, producto_rect.y + 5))
+                boton_posicion = (boton_posicion[0], boton_posicion[1] + 50)
+
+            pygame.display.flip()
+
+        return producto_seleccionado
+
+
+    dt = game_clock.tick(FPS) / 1000.0  # Convertir a segundos 
+        # Actualizar la mascota
+    mascota.update(dt)
+    def ingresar_shop(self):
+        pygame.display.set_caption("Tienda de Mascota")
+        pantalla_shop = pygame.display.set_mode((500, 500))
+        sonidoopen.play()
+        ingresando_shop = True
+
+        while ingresando_shop:
+            dt = game_clock.tick(FPS) / 10000.0  # Control del tiempo del juego
+            for evento in pygame.event.get():
+                if evento.type == pygame.QUIT:
+                    ingresando_shop = False
+                    pygame.display.set_mode(
+                        (SCREEN_WIDTH, SCREEN_HEIGHT))  # Restaurar tamaño original de la ventana
+                    pygame.display.set_caption("Note Pet")
+                elif evento.type == pygame.MOUSEBUTTONDOWN:
+                    if evento.button == 1:  # Boton izquierdo del raton
+                        # Verificar si se hizo clic en un producto y comprarlo
+                        for nombre, producto in self.productos.items():
+                            if producto["rect"].collidepoint(evento.pos):
+                                self.comprar_producto(nombre)
+                        # Verificar si se hizo clic en el botón de comercio
+                        comercio_rect, inventario_rect = self.dibujar_productos(pantalla_shop)
+                        if comercio_rect.collidepoint(evento.pos):
+                            self.comerciar()
+                        # Verificar si se hizo clic en el boton de inventario
+                        if inventario_rect.collidepoint(evento.pos):
+                            self.abrir_inventario()
+                        mascota.subir_nivel()
+            pantalla_shop.fill(NEGRO)
+            comercio_rect, inventario_rect = self.dibujar_productos(pantalla_shop)  # Dibujar los productos en la tienda
+            pygame.display.flip()
+
+            pantalla_shop.fill(NEGRO)
+            self.dibujar_productos(pantalla_shop)  # Dibujar los productos en la tienda
+            pygame.display.flip()
+            
+             
+            
+    dt = game_clock.tick(FPS) / 1000.0  # Convertir a segundos 
+        # Actualizar la mascota
+    mascota.update(dt)
+    
+#inicializar la clase shop
+   
+shop = Shop(mascota)  
+
+
+
+
+class Granja(Shop):
+    TILE_SIZE = 32
+    NUM_TILES = 15
+    PLANT_GROW_TIME = 20  # Tiempo de crecimiento en segundos
+    CLOCK_TICK = 1000  # Intervalo de tiempo del reloj en milisegundos
+
+    READY_TO_PLANT = 0
+    PLANTED = 1
+    GROWING = 2
+  
+    def __init__(self, mascota, registro_granja):
+        super().__init__(mascota)
+        self.planted_products = {}  # Diccionario para mapear las posiciones de los cultivos a los nombres de los productos plantados
+        self.growth_finished = set()   # Conjunto para almacenar posiciones de tiles con crecimiento finalizado
+        self.clock = pygame.time.Clock()  # Reloj global
+        self.registro_granja = registro_granja  # Guarda el nombre del archivo
+        self.planting_time = {} #registro de plantación
+        pygame.init()
+        self.tile_images = {}  # Diccionario para mapear las posiciones de los Tiles a las imágenes de los productos
+        self.load_product_images()  # Cargar las imágenes de los productos
+        self.tile_colors = [[(0, 0, 0) for _ in range(self.NUM_TILES)] for _ in range(self.NUM_TILES)]
+        self.tile_states = {(x, y): Granja.READY_TO_PLANT for x in range(self.NUM_TILES) for y in range(self.NUM_TILES)}
+        
+    def load_product_images(self):
+                                                                         # Cargar las imágenes de los productos
+        for producto in self.productos:
+            imagen_path = self.productos[producto]["imagen"]
+            self.tile_images[producto] = imagen_path
+     
+    def start_growth_timer(self, tile_position, timer_id=None):
+        if timer_id is None:
+            timer_id = pygame.USEREVENT + tile_position[0] * self.NUM_TILES + tile_position[1]
+            pygame.time.set_timer(timer_id, self.PLANT_GROW_TIME * 1000)
+            self.planting_time[tile_position] = pygame.time.get_ticks()  # Guardar el tiempo actual como tiempo de plantación
+
+    def stop_growth_timer(self, tile_position):
+        timer_id = pygame.USEREVENT + tile_position[0] * self.NUM_TILES + tile_position[1]
+        pygame.time.set_timer(timer_id, 0)   
+            
+    def update(self):
+                                               # Actualizar el estado de los cultivos en función del tiempo transcurrido
+        for tile_position, state in self.tile_states.items():
+              if state == Granja.GROWING:
+                  self.tile_states[tile_position] = Granja.READY_TO_PLANT
+                  if tile_position in self.planted_products:
+                        self.growth_finished.add(tile_position)
+        
+    
+    def guardar_datos(self):
+        # Guardar información sobre los productos plantados y sus tiempos de plantación
+        with open(self.registro_granja, 'w') as file:
+            for position, product in self.planted_products.items():
+                planting_time = self.planting_time.get(position, 0)  # Obtener el tiempo de plantación o 0 si no está definido
+                file.write(f"{position[0]},{position[1]},{product},{planting_time}\n")
+  
+        # Guardar información sobre los tiles con crecimiento finalizado
+        with open("growth_finished_data.txt", "w") as archivo:
+            for position in self.growth_finished:
+                archivo.write(f"{position[0]},{position[1]}\n")
+             
+    def cargar_datos(self):
+        # Cargar información sobre los productos plantados y sus tiempos de plantación
+        with open(self.registro_granja, 'r') as file:
+            for line in file:
+                parts = line.strip().split(',')
+                x = int(parts[0])
+                y = int(parts[1])
+                product = parts[2]
+                planting_time = float(parts[3])
+                self.planted_products[(x, y)] = product
+                if planting_time > 0:
+                    # Calcular el tiempo que ha pasado desde la plantación
+                    elapsed_time = (pygame.time.get_ticks() - planting_time) / 1000
+                    # Calcular el tiempo restante hasta que el producto crezca completamente
+                    remaining_time = max(0, self.PLANT_GROW_TIME - elapsed_time)
+                    # Iniciar el temporizador con el tiempo restante
+                    self.start_growth_timer((x, y))
+       
+        # Cargar información sobre los tiles con crecimiento finalizado
+        with open("growth_finished_data.txt", "r") as archivo:
+            for line in archivo:
+                parts = line.strip().split(',')
+                x = int(parts[0])
+                y = int(parts[1])
+                self.growth_finished.add((x, y))
+
+
+                                                          #Posición del mouse
+    
+    def get_tile_at_mouse_pos(self, mouse_pos):
+        x, y = mouse_pos
+        tile_x = x // self.TILE_SIZE
+        tile_y = y // self.TILE_SIZE
+        return (tile_x, tile_y)
+                                                                         #Plantar#
+    def plant_product(self, producto_nombre, tile_position):
+        # Verificar si se puede plantar el producto
+        if producto_nombre in self.productos and self.productos[producto_nombre]["plantar"]:
+            if producto_nombre in shop.inventario and shop.inventario[producto_nombre] > 0:
+                if self.tile_states[tile_position] == Granja.READY_TO_PLANT:
+                    if shop.puede_plantar(producto_nombre):
+                        self.planted_products[tile_position] = producto_nombre
+                        self.tile_states[tile_position] = Granja.PLANTED
+                        shop.inventario[producto_nombre] -= 1
+                        print(f"{producto_nombre} plantado en la posicion {tile_position}")
+                        self.planting_time[tile_position] = time.time()
+                        tiempo_plantacion = self.productos[producto_nombre]["tiempo_plantacion"]
+                        # Calcular el tiempo de crecimiento en milisegundos
+                        pygame.time.set_timer(pygame.USEREVENT + tile_position[0] * self.NUM_TILES + tile_position[1], tiempo_plantacion * 10000)
+
+                        return True
+                    else:
+                        print("Este producto no se puede plantar en la granja.")
+                        return False
+                else:
+                    print("El tile no esta listo para plantar.")
+                    return False
+            else:
+                print("No tienes suficientes productos para plantar.")
+                return False
+        else:
+            print("No se puede plantar este producto.")
+            return False
+            pygame.display.flip()
+                                                                       #recolectar#
+    def collect_product(self, tile_position):
+        if tile_position in self.planted_products:
+            if tile_position in self.growth_finished:
+                producto_nombre = self.planted_products.pop(tile_position)
+                if producto_nombre not in shop.inventario:
+                    shop.inventario[producto_nombre] = 0
+                shop.inventario[producto_nombre] += 5
+                self.tile_states[tile_position] = Granja.READY_TO_PLANT
+                self.tile_colors[tile_position[1]][tile_position[0]] = (20, 20, 0)
+                self.growth_finished.remove(tile_position)
+                print(f"Recolectado {producto_nombre} de la posicion {tile_position}")
+                return True
+            else:
+                print("El producto aun no ha crecido completamente en esa posicion.")
+                return False
+            
+                pygame.display.flip()
+        
+          
+                    
+    def Land(self):
+         pygame.display.set_caption("Granja")
+         pantalla_Land = pygame.display.set_mode((480, 480))
+         self.draw_screen(pantalla_Land)  # Dibujar la pantalla al abrirse
+         pygame.display.flip()  # Actualizar la pantalla antes del bucle
+         farmeando = True
+         tile_clicked = None  # Inicializa tile_clicked aquí
+         producto_seleccionado = None  # Inicializa producto_seleccionado aquí
+         self.cargar_datos()
+               
+         while farmeando:
+             for evento in pygame.event.get():
+                  if evento.type == pygame.QUIT:
+                        farmeando = False  # Salir del bucle cuando se cierra la ventana
+                        self.guardar_datos()
+                        pygame.display.set_mode(
+                            (SCREEN_WIDTH, SCREEN_HEIGHT))  # Restaurar tamaño original de la ventana
+                        pygame.display.set_caption("Note Pet")
+                  elif evento.type == pygame.MOUSEBUTTONDOWN:
+                        mouse_pos = pygame.mouse.get_pos()
+                        tile_clicked = self.get_tile_at_mouse_pos(mouse_pos)  # Asigna la posición del tile clickeado
+                        print("Clic en tile:", tile_clicked)
+                        print(shop.inventario)  # Acceder al inventario de la granja
+                        if evento.button == 1:  # Si se hizo clic izquierdo
+                           producto_seleccionado = shop.abrir_inventario()  # Obtener el producto seleccionado del inventario
+                        if self.plant_product(producto_seleccionado, tile_clicked):
+                                # Dibujar nuevamente la pantalla solo si la plantación fue exitosa
+                                self.draw_screen(pantalla_Land)
+                                pygame.display.flip()  # Actualizar la pantalla después de la plantación
+                        elif evento.button == 3:  # Si se hizo clic derecho
+                            if tile_clicked in self.planted_products:
+                                if self.collect_product(tile_clicked):
+                                    # Dibujar nuevamente la pantalla solo si la recolección fue exitosa
+                                   self.draw_screen(pantalla_Land)
+                                   pygame.display.flip()  # Actualizar la pantalla después de la recolección
+                  elif evento.type >= pygame.USEREVENT and evento.type < pygame.USEREVENT + self.NUM_TILES * self.NUM_TILES:
+                        # Evento del temporizador de crecimiento
+                          timer_key = evento.type - pygame.USEREVENT
+                          tile_position = (timer_key // self.NUM_TILES, timer_key % self.NUM_TILES)
+                          if tile_position in self.planted_products:
+                           self.growth_finished.add(tile_position)
+                       
+
+                  self.draw_screen(pantalla_Land)
+                  pygame.display.flip()  # Actualizar la pantalla después de que un producto haya terminado de crecer
+
+    def draw_screen(self, screen):
+        # Dibujar los colores de fondo de los tiles
+        for y in range(self.NUM_TILES):
+            for x in range(self.NUM_TILES):
+                tile_position = (x, y)
+                if tile_position in self.growth_finished:
+                    color = (2, 100, 33)  # Verde si el crecimiento ha finalizado
+                elif tile_position in self.planted_products:
+                    color = (4, 9, 1)  # color si está plantado
+                elif self.tile_states[tile_position] == Granja.READY_TO_PLANT:
+                    color = (2, 4, 0)  # color si está listo para plantar
+                else:
+                    color = (20, 25, 20)  # Gris oscuro si no está plantado
+                pygame.draw.rect(screen, color, (x * self.TILE_SIZE, y * self.TILE_SIZE, self.TILE_SIZE, self.TILE_SIZE), 0)
+                pygame.draw.rect(screen, (20, 40, 0), (x * self.TILE_SIZE, y * self.TILE_SIZE, self.TILE_SIZE, self.TILE_SIZE), 1)
+                
+        
+        # Dibujar las imágenes de los productos si están plantados
+        for tile_position, producto_nombre in self.planted_products.items():
+            image = self.tile_images[producto_nombre]
+            screen.blit(image, (tile_position[0] * self.TILE_SIZE, tile_position[1] * self.TILE_SIZE))
+                
+                 # Dibujar la imagen del producto si está plantado
+        if (x, y) in self.planted_products:
+            producto_nombre = self.planted_productst[tile_position]
+            image = self.tile_images[producto_nombre]
+            screen.blit(image, (x * self.TILE_SIZE, y * self.TILE_SIZE))
+    
+    # Para manejar el temporizador de los cultivos
+    def handle_timer_event(self, event):
+      timer_key = event.type - pygame.USEREVENT
+      tile_position = (timer_key // self.NUM_TILES, timer_key % self.NUM_TILES)
+      if tile_position in self.planted_products:
+        self.growth_finished.add(tile_position)
+        
+        pygame.display.flip()  # Actualizar la pantalla después de que un producto haya terminado de crecer
+
+     
+
+ #iniciar la clase granja
+granja = Granja(mascota, 'datos_granja.txt')
+
+# Llamada a la función para cargar datos al iniciar el juego
+
+granja.cargar_datos()
+
+dt = game_clock.tick(FPS) / 1000.0  # Convertir a segundos 
+        # Actualizar la mascota
+mascota.update(dt)
+# Inicializar botón de alimentar
+boton_alimentar = pygame.Rect(450, 80, 140, 40)
+###
+#Inicializar boton de combate
+boton_combate = pygame.Rect(450,80,140, 40)
+
+# Inicializar el objeto de registro de texto
+registro = Registro()
+# Iniciaalizar el objetode tienda de mascota
+
+shop = Shop(mascota)
+
+
+
+# Inicializar el tiempo transcurrido
+
+time_elapsed = 0
+
+# Variable para controlar si se debe bloquear el botón de alimentar
+bloquear_boton_alimentar = False
+# Variable para controlar si se debe bloquear el boton de combate
+bloquear_boton_combate = False
+#sonidos##
+
+sonidoopen =pygame.mixer.Sound("open.mp3")
+
+# Función para cargar datos al iniciar el juego
+def cargar_datos():
+    try:
+        with open("save.pet.txt", "r") as archivo:
+            # Leer las primeras 9 posiciones para los valores de la mascota
+            datos_mascota = archivo.readline().strip().split(',')
+            mascota.hambre = float(datos_mascota[0])
+            mascota.vida = float(datos_mascota[1])
+            mascota.experiencia = int(datos_mascota[2])
+            mascota.nivel = int(datos_mascota[3])
+            mascota.evolucion_actual = int(datos_mascota[4])
+            mascota.frame_index = int(datos_mascota[5])
+            mascota.frame_start = int(datos_mascota[6])
+            mascota.frame_end = int(datos_mascota[7])
+            mascota.coins = int(datos_mascota[8])
+                       
+    except FileNotFoundError:
+        # Manejar el caso cuando el archivo no existe
+        pass
+
+def cargar_inventario():
+    try:
+        with open("inventory.txt", "r") as archivo:
+            for linea in archivo:
+                nombre, cantidad = linea.strip().split(',')
+                shop.inventario[nombre] = int(cantidad)
+    except FileNotFoundError:
+        # Manejar el caso cuando el archivo no existe
+        pass
+
+    
+       
+# Llamada a la función para cargar datos al iniciar el juego
+cargar_datos()
+
+############ llamar funcion cargar inventario###
+cargar_inventario()
+
+
+# Bucle principal del juego
+running = True
+while running:
+    # Manejo de eventos
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:  # Botón izquierdo del ratón
+                if not mascota.muerto and not bloquear_boton_alimentar and boton_alimentar.collidepoint(event.pos):
+                    alimentar_mascota(mascota)
+                elif not mascota.muerto:
+                    mascota.experiencia += 1  # Incrementar experiencia al hacer clic
+                    print(f"Has ganado 1 punto de experiencia Total de experiencia: {mascota.experiencia}")
+                    mascota.subir_nivel()  # Verificar si se puede subir de nivel
+                if not mascota.muerto and not bloquear_boton_combate and boton_combate.collidepoint(event.pos):
+                    granja.Land()
+            elif event.button == 3:  # Botón derecho del ratón
+                if not mascota.muerto:
+                    registro.ingresar_texto()
+            elif event.button == 2:  # Botón central del ratón
+                if not mascota.muerto:
+                    shop.ingresar_shop()  
+              # Manejo de eventos del temporizador
+        elif event.type >= pygame.USEREVENT and event.type < pygame.USEREVENT + granja.NUM_TILES * granja.NUM_TILES:
+            # Llama a la función que maneja los eventos del temporizador
+            granja.handle_timer_event(event)
+        
+    
+                
+
+    # Calcular el tiempo transcurrido desde el último fotograma
+    dt = game_clock.tick(FPS) / 1000.0  # Se fijan los FPS a 30
+    time_elapsed += dt
+    # Calcular el nivel actual
+    nivel_actual = mascota.nivel + int(mascota.experiencia / 100)
+
+    # Actualizar la vida y el hambre
+    if not mascota.muerto:
+        mascota.hambre -= dt * .1 # Reducir el hambre con el tiempo .1
+        mascota.vida -= dt * .06  # Reducir la vida con el tiempo     .06
+
+        # Restringir los valores de hambre y vida entre 0 y 100
+        mascota.hambre = max(0, min(101, mascota.hambre))
+        mascota.vida = max(0, min(101, mascota.vida))
+
+        # Lógica para abrir la ventana de texto cada 10 minutos
+        if time_elapsed > 600:
+            registro.ingresar_texto()
+            time_elapsed = 0  # Reiniciar el tiempo transcurrido
+
+        # Actualizar la mascota
+        mascota.update(dt)
+        # Actualizar el mensaje
+        mascota.mensaje.actualizar(dt)
+    else:
+        # Si la mascota está muerta, bloquear el botón de alimentar durante 2 minutos
+        if mascota.tiempo_muerto is None:
+            mascota.tiempo_muerto = pygame.time.get_ticks()  # Marcar el tiempo de muerte
+
+        tiempo_actual = pygame.time.get_ticks()
+        tiempo_transcurrido = tiempo_actual - mascota.tiempo_muerto
+
+        if tiempo_transcurrido > 120000:  # 3600 segundos = 4 minutos
+            bloquear_boton_alimentar = False
+            mascota.tiempo_muerto = None
+            mascota.muerto = False
+            mascota.hambre = 20
+            mascota.vida = 50
+            mascota.nivel = 0
+            mascota.experiencia = 0
+            mascota.frame_index = 0
+            mascota.frame_start = 0
+            mascota.frame_end = 3
+            mascota.evolucion_actual = 1
+            mascota.coins = 0
+            mascota.frames_evolucion = 0,3
+            pygame.display.flip()
+        else:
+            bloquear_boton_alimentar = True
+
+            
+        # Actualizar la mascota
+        mascota.update(dt)
+        # Actualizar el mensaje
+        mascota.mensaje.actualizar(dt)
+    # Revisar si la mascota ha muerto debido a hambre y vida cero
+    if mascota.hambre <= 0 and mascota.vida <= 0:
+        mascota.muerto = True
+        bloquear_boton_alimentar = True
+        bloquear_boton_combate = True
+
+    # Dibujar la pantalla
+    screen.fill(NEGRO)
+
+    # Dibujar la mascota
+    screen.blit(mascota.image, mascota.rect)
+
+    # Dibujar barra de hambre
+    barra_hambre_ancho = max(mascota.hambre, 0) * 3  # Asegurarse de que la anchura nunca sea negativa
+    pygame.draw.rect(screen, VERDE, (10, 10, barra_hambre_ancho, 20))
+    pygame.draw.rect(screen, BLANCO, (10, 10, 3, 20), 2)
+    texto_hambre = fuente.render(f"Hambre: {int(max(mascota.hambre, 0))}", True, BLANCO)
+    screen.blit(texto_hambre, (330, 10))
+
+    # Dibujar barra de vida
+    barra_vida_ancho = max(mascota.vida, 0) * 3  # Asegurarse de que la anchura nunca sea negativa
+    pygame.draw.rect(screen, ROJO, (10, 40, barra_vida_ancho, 20))
+    pygame.draw.rect(screen, BLANCO, (10, 40, 3, 20), 2)
+    texto_vida = fuente.render(f"Vida: {int(max(mascota.vida, 0))}", True, BLANCO)
+    screen.blit(texto_vida, (330, 40))
+
+    # Dibujar barra de experiencia
+    barra_experiencia_ancho = max(mascota.experiencia, 0) * 4.7  # Asegurarse de que la anchura nunca sea negativa
+    pygame.draw.rect(screen, AZUL, (10, 470, barra_experiencia_ancho, 20))
+    pygame.draw.rect(screen, AZUL, (10, 470, 1, 20), 2)
+    texto_experiencia = fuente.render(f"Experiencia: {int(mascota.experiencia)}", True, BLANCO)
+    screen.blit(texto_experiencia, (10, 470))
+    screen.blit(texto_experiencia, (10, 470))
+    
+    # Mostrar el nivel actual en la barra de experiencia
+    texto_nivel = fuente.render(f"Nivel: {nivel_actual}", True, BLANCO)
+    screen.blit(texto_nivel, (360, 470))
+
+    # Dibujar botón de alimentar centrado en la parte inferior de la pantalla
+    boton_alimentar.x = (SCREEN_WIDTH - boton_alimentar.width) // 2
+    boton_alimentar.y = SCREEN_HEIGHT - 80  # Ajustar la posición vertical
+    pygame.draw.rect(screen, BLANCO if not bloquear_boton_alimentar else GRIS, boton_alimentar)  # Cambiar el color si está bloqueado
+
+    # Definir el texto del botón según el estado de la mascota
+    if mascota.muerto:
+        texto_boton = fuente.render("Muerto", True, NEGRO)
+    elif bloquear_boton_alimentar:
+        texto_boton = fuente.render("Bloqueado", True, ROJO)
+    else:
+        texto_boton = fuente.render("Alimentar", True, NEGRO)
+
+    # Mostrar el texto del botón
+    screen.blit(texto_boton, (boton_alimentar.x + 10, boton_alimentar.y + 10))
+
+    # Dibujar botón de combate a la izquierda en la parte inferior de la pantalla
+    boton_combate.x = (SCREEN_WIDTH - boton_alimentar.width) // 12
+    boton_combate.y = SCREEN_HEIGHT - 80  # Ajustar la posición vertical
+    pygame.draw.rect(screen, BLANCO if not bloquear_boton_alimentar else GRIS, boton_combate)  # Cambiar el color si está bloqueado
+    
+    
+      # Definir el texto del botón según el estado de la mascota
+    if mascota.muerto:
+        texto_boton = fuente.render("Muerto", True, NEGRO)
+    elif bloquear_boton_combate:
+        texto_boton = fuente.render("Bloqueado", True, ROJO)
+    else:
+        texto_boton = fuente.render("Granja", True, NEGRO)
+    
+    ##
+    screen.blit(texto_boton, (boton_combate.x + 20, boton_combate.y + 10))
+    # Mostrar mensajes
+    mascota.mensaje.mostrar(screen, 10, 100)
+
+    # Actualizar la pantalla
+    pygame.display.flip()
+
+
+    # Mostrar mensajes
+    mascota.mensaje.mostrar(screen, 10, 100)
+    pygame.display.flip()
+
+
+# Guardar datos antes de cerrar el juego
+def guardar_datos():
+    with open("save.pet.txt", "w") as archivo:
+        archivo.write(f"{mascota.hambre},{mascota.vida},{mascota.experiencia},{mascota.nivel},{mascota.evolucion_actual},{mascota.frame_index},{mascota.frame_start},{mascota.frame_end},{mascota.coins}")
+# Guardar datos del inventario
+def guardar_inventario():
+    with open("inventory.txt", "w") as archivo:
+        for nombre, cantidad in shop.inventario.items():
+            archivo.write(f"{nombre},{cantidad}\n")
+
+                
+# Guardar datos del inventario
+guardar_inventario()       
+# Guardar datos de la granja
+# Llamada a la función para guardar datos antes de cerrar el juego
+guardar_datos()
+# LLamar al guardado de la granja
+
+
+
+# Luego de salir del bucle principal, cerrar Pygame
+
+pygame.quit()
+sys.exit()
